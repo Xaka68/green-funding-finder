@@ -1,5 +1,5 @@
 import streamlit as st
-from ui.streamlit_ui import render_program
+from streamlit_ui import render_program
 from services.funding_service import find_funding_programs
 from services.resource_service import extract_resources
 
