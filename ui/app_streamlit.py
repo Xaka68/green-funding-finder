@@ -1,3 +1,9 @@
+import sys
+from pathlib import Path
+
+ROOT_DIR = Path(__file__).resolve().parent
+sys.path.append(str(ROOT_DIR))
+
 import streamlit as st
 from streamlit_ui import render_program
 from services.funding_service import find_funding_programs
