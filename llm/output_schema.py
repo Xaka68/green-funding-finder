@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field
-from typing import List
+from pydantic import BaseModel, Field, validator
+from typing import List, Optional
 
 
 class FoerderProgramm(BaseModel):
@@ -42,7 +42,8 @@ class FoerderProgramm(BaseModel):
         default_factory=list,
         description=(
             "Liste von offiziellen Webseiten (URLs), auf denen weitere "
-            "Informationen oder Antragsformulare zu finden sind."
+            "Informationen oder Antragsformulare zu finden sind. "
+            "Programme ohne Links werden verworfen."
         )
     )
 
@@ -50,9 +51,21 @@ class FoerderProgramm(BaseModel):
         default_factory=list,
         description=(
             "Liste direkter Links zu offiziellen PDF-Dokumenten "
-            "wie Förderrichtlinien oder Antragsunterlagen."
+            "wie Förderrichtlinien oder Antragsunterlagen. Optional."
         )
     )
+
+    @validator("links", pre=True, always=True)
+    def filter_no_links(cls, v, values, **kwargs):
+        """
+        Wenn das Programm keine offiziellen Links hat, 
+        dann soll es als None zurückgegeben werden,
+        sodass wir dieses Programm im UI nicht anzeigen.
+        """
+        if not v or len(v) == 0:
+            # Markieren, dass das Programm ungültig ist
+            raise ValueError("Programm ohne offizielle Links – wird ignoriert")
+        return v
 
 
 class FoerderAntwort(BaseModel):
@@ -66,7 +79,7 @@ class FoerderAntwort(BaseModel):
     programme: List[FoerderProgramm] = Field(
         description=(
             "Liste aller passenden Förderprogramme, die zur Nutzeranfrage passen. "
-            "Nur reale Programme aufführen, keine erfundenen."
+            "Nur reale Programme mit offiziellen Links aufführen."
         )
     )
 

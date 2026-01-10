@@ -6,3 +6,9 @@ langchain-mistralai
 pydantic
 requests
 streamlit
+requests
+google-generativeai
+langchain-google-genai
+langchain-openai
+
+
