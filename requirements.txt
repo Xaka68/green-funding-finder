@@ -10,5 +10,9 @@ requests
 google-generativeai
 langchain-google-genai
 langchain-openai
+pandas
+beautifulsoup4
+langchain-chroma
+python-dotenv
 
 

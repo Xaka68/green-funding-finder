@@ -90,3 +90,20 @@ class FoerderAntwort(BaseModel):
             "'Antrag muss vor Projektbeginn gestellt werden'."
         )
     )
+
+
+class FoerderProgrammDB(BaseModel):
+    name: str = Field(description="Offizieller Name des Förderprogramms")
+    anbieter: str = Field(description="Wer bietet die Förderung an? (z.B. Stadt München, KfW)")
+    
+    # Wichtig für die Filterung in der Vektor-DB
+    region: List[str] = Field(description="Liste der Orte oder Bundesländer, wo das gilt (z.B. ['München', 'Bayern', 'Deutschland'])")
+    kategorie: List[str] = Field(description="Art der Förderung (z.B. ['Dachbegrünung', 'Fassadenbegrünung', 'Entsiegelung'])")
+    
+    beschreibung: str = Field(description="Neutrale Beschreibung, was gefördert wird und was das Ziel ist.")
+    foerderhoehe: str = Field(description="Fakten zur Förderhöhe (z.B. '50% bis max 2000€').")
+    
+    voraussetzungen: List[str] = Field(description="Liste der harten Kriterien (z.B. 'Gebäude älter als 5 Jahre').")
+    
+    links: List[str] = Field(description="Link zur Detailseite oder Antragsformular.")
+    quelle_url: str = Field(description="Die URL, von der diese Daten gescrapt wurden.")
