@@ -52,21 +52,31 @@ def add_program_to_index(program: FoerderProgrammDB):
 # ... existing imports ...
 
 def get_all_stored_programs():
-    """Fetches all documents and metadata from the vector database."""
+    """
+    Workaround für Pinecone: Da es kein .get() gibt, suchen wir nach 
+    einem generischen Begriff und holen bis zu 100 Einträge.
+    """
     db = get_vector_store()
-    
-    # ChromaDB allows fetching all data (limit to a reasonable number if DB grows huge)
-    data = db.get() 
-    
-    # 'data' is a dict with keys: 'ids', 'embeddings', 'metadatas', 'documents'
     results = []
-    if data and data['ids']:
-        for i, doc_id in enumerate(data['ids']):
+    
+    try:
+        # Trick: Wir suchen nach "Förderung", was in jedem deiner Dokumente vorkommt.
+        # k=100 reicht für deinen Anwendungsfall locker aus.
+        docs = db.similarity_search("Förderung", k=100)
+        
+        # Wir formatieren die Ergebnisse so, wie dein Frontend sie erwartet (wie bei Chroma)
+        for doc in docs:
             results.append({
-                "id": doc_id,
-                "metadata": data['metadatas'][i],
-                "content": data['documents'][i]
+                "id": doc.metadata.get("name", "Unknown ID"), 
+                "metadata": doc.metadata,
+                "content": doc.page_content
             })
+            
+    except Exception as e:
+        print(f"⚠️ Warnung: Konnte Admin-Liste nicht laden: {e}")
+        # Leere Liste zurückgeben, damit die App nicht crasht
+        return []
+        
     return results
 
 def delete_collection():
