@@ -2,15 +2,18 @@ from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
 from langchain_core.documents import Document
 from llm.output_schema import FoerderProgrammDB
+from langchain_pinecone import PineconeVectorStore
 
 # Pfad wo die DB gespeichert wird
 PERSIST_DIRECTORY = "./data/chroma_db"
 
+INDEX_NAME = "green-funding"  # Exakt der Name aus deinem Screenshot
+
 def get_vector_store():
-    return Chroma(
-        collection_name="green_funding_programs",
-        embedding_function=OpenAIEmbeddings(),
-        persist_directory=PERSIST_DIRECTORY
+    # Wir verbinden uns mit der Cloud-DB statt lokalem Ordner
+    return PineconeVectorStore(
+        index_name=INDEX_NAME,
+        embedding=OpenAIEmbeddings()
     )
 
 def add_program_to_index(program: FoerderProgrammDB):

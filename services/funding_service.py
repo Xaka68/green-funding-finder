@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
+from langchain_pinecone import PineconeVectorStore
 from llm.chains import build_funding_chain
 
 # 1. Environment laden (Wichtig für API Key)
@@ -10,10 +11,12 @@ load_dotenv()
 # 2. Datenbank initialisieren (Mit OpenAI Embeddings)
 embeddings = OpenAIEmbeddings()
 
-vector_db = Chroma(
-    collection_name="green_funding_programs",
-    embedding_function=embeddings,
-    persist_directory="./data/chroma_db"
+INDEX_NAME = "green-funding"
+
+# Verbindung zur Cloud
+vector_db = PineconeVectorStore(
+    index_name=INDEX_NAME,
+    embedding=embeddings
 )
 
 # 3. Chain bauen
