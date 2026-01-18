@@ -1,26 +1,45 @@
-from langchain_chroma import Chroma
+import os
+import re
+from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings
-from langchain_core.documents import Document
-from llm.output_schema import FoerderProgrammDB
 from langchain_pinecone import PineconeVectorStore
+from langchain_core.documents import Document
+from utils.output_schema import FoerderProgrammDB
 
-# Pfad wo die DB gespeichert wird
-PERSIST_DIRECTORY = "./data/chroma_db"
+load_dotenv()
 
-INDEX_NAME = "green-funding"  # Exakt der Name aus deinem Screenshot
+INDEX_NAME = "green-funding"
 
 def get_vector_store():
-    # Wir verbinden uns mit der Cloud-DB statt lokalem Ordner
     return PineconeVectorStore(
         index_name=INDEX_NAME,
         embedding=OpenAIEmbeddings()
     )
 
+def sanitize_id(text: str) -> str:
+    """
+    Pinecone erlaubt nur ASCII-Zeichen in IDs.
+    Wir wandeln deutsche Umlaute um und entfernen Sonderzeichen.
+    Beispiel: "Münchener Gründach" -> "muenchener_gruendach"
+    """
+    text = text.lower()
+    
+    # 1. Deutsche Umlaute ersetzen
+    mapping = {"ä": "ae", "ö": "oe", "ü": "ue", "ß": "ss"}
+    for k, v in mapping.items():
+        text = text.replace(k, v)
+        
+    # 2. Alles entfernen, was kein Buchstabe, Zahl oder Unterstrich ist
+    # (Entfernt auch Leerzeichen und ersetzt sie durch Nichts, wir machen das vorher)
+    text = text.replace(" ", "_")
+    text = re.sub(r'[^a-z0-9_]', '', text)
+    
+    return text
+
 def add_program_to_index(program: FoerderProgrammDB):
     vector_db = get_vector_store()
     
-    # 1. Erstelle den durchsuchbaren Text (Content)
-    # Wir packen alle Keywords rein, nach denen man suchen könnte
+    # 1. Content bauen (Link direkt im Text!)
     page_content = (
         f"Programm: {program.name}\n"
         f"Link: {program.quelle_url}\n"
@@ -29,58 +48,53 @@ def add_program_to_index(program: FoerderProgrammDB):
         f"Förderhöhe: {program.foerderhoehe}"
     )
     
-    # 2. Erstelle Metadaten (für Filterung: "Gib mir nur Programme in München")
+    # 2. Metadaten
     metadata = {
         "name": program.name,
-        "regionen": ", ".join(program.region), # Chroma mag einfache Strings lieber als Listen in Metadaten
+        "regionen": ", ".join(program.region),
         "kategorien": ", ".join(program.kategorie),
         "url": program.quelle_url,
-        "json_dump": program.json() # Wir speichern das ganze JSON als String, um es später schnell wiederherzustellen
+        "json_dump": program.json()
     }
     
-    # 3. ID erstellen (um Duplikate zu vermeiden)
-    doc_id = program.name.replace(" ", "_").lower()
+    # 3. ID sicher machen (FIX FÜR ERROR 400)
+    doc_id = sanitize_id(program.name)
     
-    # 4. Speichern
-    vector_db.add_documents(
-        documents=[Document(page_content=page_content, metadata=metadata)],
-        ids=[doc_id]
-    )
-    print(f"✅ Gespeichert: {program.name}")
-
-    # services/vector_service.py
-# ... existing imports ...
+    # 4. In die Cloud hochladen
+    try:
+        vector_db.add_documents(
+            documents=[Document(page_content=page_content, metadata=metadata)],
+            ids=[doc_id]
+        )
+        print(f"✅ Gespeichert in Pinecone: {doc_id}")
+    except Exception as e:
+        print(f"❌ Fehler beim Speichern von {program.name}: {e}")
 
 def get_all_stored_programs():
     """
-    Workaround für Pinecone: Da es kein .get() gibt, suchen wir nach 
-    einem generischen Begriff und holen bis zu 100 Einträge.
+    Workaround für Pinecone Admin-View (Dummy Search)
     """
     db = get_vector_store()
     results = []
     
     try:
-        # Trick: Wir suchen nach "Förderung", was in jedem deiner Dokumente vorkommt.
-        # k=100 reicht für deinen Anwendungsfall locker aus.
+        # Suche nach "Förderung", um "alle" (max 100) Einträge zu finden
         docs = db.similarity_search("Förderung", k=100)
         
-        # Wir formatieren die Ergebnisse so, wie dein Frontend sie erwartet (wie bei Chroma)
         for doc in docs:
             results.append({
-                "id": doc.metadata.get("name", "Unknown ID"), 
+                "id": sanitize_id(doc.metadata.get("name", "unknown")), 
                 "metadata": doc.metadata,
                 "content": doc.page_content
             })
             
     except Exception as e:
         print(f"⚠️ Warnung: Konnte Admin-Liste nicht laden: {e}")
-        # Leere Liste zurückgeben, damit die App nicht crasht
         return []
         
     return results
 
 def delete_collection():
-    """Clears the database (useful for resetting during development)."""
-    db = get_vector_store()
-    db.delete_collection()
-    print("Database cleared.")
+    vector_db = get_vector_store()
+    vector_db.delete(delete_all=True)
+    print("🗑️ Pinecone Index geleert.")
