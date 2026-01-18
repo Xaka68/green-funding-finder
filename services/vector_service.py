@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings
 from langchain_pinecone import PineconeVectorStore
 from langchain_core.documents import Document
-from utils.output_schema import FoerderProgrammDB
+from llm.output_schema import FoerderProgrammDB
 
 load_dotenv()
 
