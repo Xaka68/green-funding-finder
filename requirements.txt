@@ -14,5 +14,7 @@ pandas
 beautifulsoup4
 langchain-chroma
 python-dotenv
+langchain-pinecone 
+pinecone-client
 
 
